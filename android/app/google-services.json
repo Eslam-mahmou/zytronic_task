@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "382236211402",
+    "project_id": "whatsapp12-3b9d8",
+    "storage_bucket": "whatsapp12-3b9d8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:382236211402:android:23fafe5be1f413b7399c33",
+        "android_client_info": {
+          "package_name": "com.example.zytronic_task"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBg7jwxpCrUpbGZZmqn3-BWjbj5G4ml-wQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

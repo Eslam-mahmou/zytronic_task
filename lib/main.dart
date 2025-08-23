@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:zytronic_task/core/routes/routes_generator.dart';
@@ -7,9 +8,13 @@ import 'package:zytronic_task/core/utils/app_theme.dart';
 
 import 'core/app_provider/app_config_provider.dart';
 import 'core/service/bloc_observer.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async{
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   Bloc.observer = MyBlocObserver();
   runApp(
     ChangeNotifierProvider(
