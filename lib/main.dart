@@ -8,6 +8,7 @@ import 'package:zytronic_task/core/utils/app_theme.dart';
 
 import 'core/app_provider/app_config_provider.dart';
 import 'core/service/bloc_observer.dart';
+import 'di/injectable_initializer.dart';
 import 'firebase_options.dart';
 
 void main() async{
@@ -16,6 +17,7 @@ void main() async{
     options: DefaultFirebaseOptions.currentPlatform,
   );
   Bloc.observer = MyBlocObserver();
+  configureDependencies();
   runApp(
     ChangeNotifierProvider(
       create: (context) => AppConfigProvider()..getTheme(),
