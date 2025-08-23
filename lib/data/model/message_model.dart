@@ -16,7 +16,7 @@ class MessageModel extends MessageEntity {
       id: id,
       senderId: (json['senderId'] ?? '') ,
       text: (json['text'] ?? '') ,
-      timestamp: (json['timestamp'] )?.toDate() ?? DateTime(2000),
+      timestamp: (json['timesTamp'] )?.toDate() ?? DateTime(2000),
     );
   }
 
