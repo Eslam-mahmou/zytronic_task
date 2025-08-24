@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:zytronic_task/core/app_provider/app_config_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:zytronic_task/core/responseve_screen/responseve_height_width.dart';
+import 'package:zytronic_task/core/utils/constant_manager.dart';
+import 'package:zytronic_task/di/injectable_initializer.dart';
 import 'package:zytronic_task/presentaion/layout/manager/layout_cubit/layout_state.dart';
 import 'package:zytronic_task/presentaion/layout/manager/layout_cubit/layout_view_model.dart';
 
 import '../../../core/utils/app_assets.dart';
+import '../manager/stoy_tab_cubit/story_tab_cubit.dart';
 
 class LayoutScreen extends StatelessWidget {
   const LayoutScreen({super.key});
@@ -28,14 +32,22 @@ class LayoutScreen extends StatelessWidget {
               Icons.camera_alt_outlined,
               color: isDarkMode ? Colors.white : Colors.black,
             ),
+            SizedBox(
+              width: 8.widthResponsive,
+            ),
             Icon(
               Icons.search,
               color: isDarkMode ? Colors.white : Colors.black,
             ),
-
+            SizedBox(
+              width: 8.widthResponsive,
+            ),
             Icon(
               Icons.more_vert,
               color: isDarkMode ? Colors.white : Colors.black,
+            ),
+            SizedBox(
+              width: 8.widthResponsive,
             ),
           ],
         ),
@@ -56,6 +68,13 @@ class LayoutScreen extends StatelessWidget {
             ),
           ],
         ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            getIt.get<StoryCubit>().pickAndUploadStory(AppConstant.userId);
+          },
+          child: const Icon(Icons.add),
+        ),
+
       );
     },
     ),

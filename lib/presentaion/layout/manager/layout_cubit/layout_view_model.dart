@@ -10,7 +10,7 @@ class LayoutViewModel extends Cubit<LayoutState> {
   int currentIndex = 0;
   List<Widget> tabs = [
     HomeScreen(),
-    StoryScreen(),
+    StoriesScreen(),
   ];
   void changeBottomNav(int index){
     emit(LayoutInitial());

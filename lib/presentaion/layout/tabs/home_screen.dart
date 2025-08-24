@@ -79,6 +79,8 @@ class HomeScreen extends StatelessWidget {
                     ),
                     title: Text(
                       chat.anotherPerson.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium,
                     ),
                     subtitle: Text(
