@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:zytronic_task/core/utils/constant_manager.dart';
 import 'package:zytronic_task/presentaion/chat_screen/view/widget/cutom_send_message.dart';
@@ -24,7 +25,8 @@ class ChatScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final viewmodel = getIt.get<ChatCubit>();
     var args = ModalRoute.of(context)?.settings.arguments as ChatUserEntity;
-
+    var provider = Provider.of<AppConfigProvider>(context);
+    bool isDarkMode = provider.isDarkMode();
     return BlocConsumer<ChatCubit, ChatState>(
       bloc: viewmodel..loadMessages(args.chatId),
       listener: (context, state) {
@@ -47,9 +49,10 @@ class ChatScreen extends StatelessWidget {
       },
       builder: (context, state) {
         return Scaffold(
+backgroundColor: AppColors.whiteColor,
           appBar: AppBar(
             title: Text(args.anotherPerson.name),
-            backgroundColor: AppConfigProvider().isDarkMode()
+            backgroundColor:isDarkMode
                 ? AppColors.blackColor
                 : AppColors.whiteColor,
           ),
