@@ -70,8 +70,8 @@ flutter:
   uses-material-design: true
 
   assets:
-     - assets/icons/
-     - -assets/images/
+    - assets/icons/
+    - assets/images/backgroundWhatsApp.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

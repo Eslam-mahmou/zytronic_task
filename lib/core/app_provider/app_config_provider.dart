@@ -7,10 +7,8 @@ class AppConfigProvider extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.light;
 
   void changeTheme(ThemeMode newTheme) {
-    if (currentTheme == newTheme) {
-      return;
-    }
-    currentTheme = newTheme;
+    currentTheme=newTheme;
+    saveTheme(newTheme);
     notifyListeners();
   }
 
