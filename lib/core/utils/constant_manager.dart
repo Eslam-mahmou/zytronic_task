@@ -6,6 +6,7 @@ abstract class AppConstant {
  static const String chatCollection = "chats";
  static const String usersCollection = "users";
  static const String messagesCollection = "messages";
+ static const String storiesCollection = "stories";
  static const String membersField = "members";
 
 }

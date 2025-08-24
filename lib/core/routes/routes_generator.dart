@@ -3,6 +3,7 @@ import 'package:zytronic_task/core/routes/routes_page.dart';
 import 'package:zytronic_task/presentaion/layout/view/layout_screen.dart';
 
 import '../../presentaion/chat_screen/view/chat_screen.dart';
+import '../../presentaion/layout/tabs/widgets/story_viewer_screen.dart';
 
 class RoutesGenerator {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -15,6 +16,13 @@ class RoutesGenerator {
       case RoutesPage.chatScreen:
         return MaterialPageRoute(
           builder: (context) =>  ChatScreen(),
+          settings: settings,
+        );
+      case RoutesPage.storyViewerScreen:
+        return MaterialPageRoute(
+          builder: (context) => StoryViewerScreen(
+            stories: settings.arguments as List,
+          ),
           settings: settings,
         );
       default:
