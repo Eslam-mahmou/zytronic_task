@@ -27,6 +27,7 @@ class StoriesDataSourceImpl implements StoriesDataSource {
 
   @override
   Stream<List<UserStoryModel>> getAllUserStories() {
+    print('📱 Loading all user stories...');
     return _firestore
         .collection(AppConstant.storiesCollection)
         .where('expiresAt', isGreaterThan: Timestamp.now())
@@ -34,12 +35,16 @@ class StoriesDataSourceImpl implements StoriesDataSource {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
+      print('📱 Found ${snapshot.docs.length} stories');
+      
       // Group stories by userId
       final Map<String, List<StoryModel>> userStoriesMap = {};
       
       for (var doc in snapshot.docs) {
         try {
           final story = StoryModel.fromFirestore(doc);
+          print('📱 Processing story from ${story.userName}: ${story.type}');
+          
           if (!story.isExpired) {
             if (userStoriesMap.containsKey(story.userId)) {
               userStoriesMap[story.userId]!.add(story);
@@ -48,7 +53,7 @@ class StoriesDataSourceImpl implements StoriesDataSource {
             }
           }
         } catch (e) {
-          print('Error parsing story: $e');
+          print('❌ Error parsing story: $e');
         }
       }
 
@@ -58,7 +63,12 @@ class StoriesDataSourceImpl implements StoriesDataSource {
         if (stories.isNotEmpty) {
           // Sort stories by creation time
           stories.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-          userStories.add(UserStoryModel.fromStories(stories));
+          try {
+            userStories.add(UserStoryModel.fromStories(stories));
+            print('📱 Added user story group for ${stories.first.userName} with ${stories.length} stories');
+          } catch (e) {
+            print('❌ Error creating user story model: $e');
+          }
         }
       });
 
@@ -69,21 +79,38 @@ class StoriesDataSourceImpl implements StoriesDataSource {
         return bLatest.compareTo(aLatest);
       });
 
+      print('📱 Returning ${userStories.length} user story groups');
       return userStories;
+    }).handleError((error) {
+      print('❌ Error in getAllUserStories: $error');
+      return <UserStoryModel>[];
     });
   }
 
   @override
   Future<String> uploadMedia(File file, String fileName) async {
     try {
+      print('📤 Uploading media: $fileName');
+      
+      if (!file.existsSync()) {
+        throw Exception('File does not exist');
+      }
+      
       final ref = _storage.ref().child('stories').child(fileName);
-      final uploadTask = ref.putFile(file);
+      final uploadTask = ref.putFile(
+        file,
+        SettableMetadata(
+          contentType: fileName.toLowerCase().contains('.mp4') ? 'video/mp4' : 'image/jpeg',
+        ),
+      );
       
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
       
+      print('✅ Media uploaded successfully: $downloadUrl');
       return downloadUrl;
     } catch (e) {
+      print('❌ Failed to upload media: $e');
       throw Exception('Failed to upload media: $e');
     }
   }
@@ -95,16 +122,24 @@ class StoriesDataSourceImpl implements StoriesDataSource {
     String? caption,
   }) async {
     try {
+      print('📝 Creating story: ${type.name}');
+      
       final now = DateTime.now();
       final expiresAt = now.add(const Duration(hours: 24)); // Stories expire after 24 hours
 
-      // Get current user data (you might want to get this from a user service)
-      final userData = await _firestore
-          .collection(AppConstant.usersCollection)
-          .doc(AppConstant.userId)
-          .get();
-      
-      final userName = userData.data()?['name'] ?? 'Unknown User';
+      // Get current user data
+      String userName = 'Unknown User';
+      try {
+        final userData = await _firestore
+            .collection(AppConstant.usersCollection)
+            .doc(AppConstant.userId)
+            .get();
+        
+        userName = userData.data()?['name'] ?? 'Me';
+      } catch (e) {
+        print('⚠️ Could not fetch user data, using default name: $e');
+        userName = 'Me'; // Default name if user data is not found
+      }
 
       final storyData = {
         'userId': AppConstant.userId,
@@ -117,8 +152,10 @@ class StoriesDataSourceImpl implements StoriesDataSource {
         'caption': caption,
       };
 
-      await _firestore.collection(AppConstant.storiesCollection).add(storyData);
+      final docRef = await _firestore.collection(AppConstant.storiesCollection).add(storyData);
+      print('✅ Story created successfully with ID: ${docRef.id}');
     } catch (e) {
+      print('❌ Failed to create story: $e');
       throw Exception('Failed to create story: $e');
     }
   }
@@ -126,18 +163,23 @@ class StoriesDataSourceImpl implements StoriesDataSource {
   @override
   Future<void> markStoryAsViewed(String storyId) async {
     try {
+      print('👁️ Marking story as viewed: $storyId');
       await _firestore
           .collection(AppConstant.storiesCollection)
           .doc(storyId)
           .update({'isViewed': true});
+      print('✅ Story marked as viewed');
     } catch (e) {
-      throw Exception('Failed to mark story as viewed: $e');
+      print('❌ Failed to mark story as viewed: $e');
+      // Don't throw here to avoid interrupting the viewing experience
     }
   }
 
   @override
   Future<void> deleteStory(String storyId) async {
     try {
+      print('🗑️ Deleting story: $storyId');
+      
       // Get story data first to delete media from storage
       final storyDoc = await _firestore
           .collection(AppConstant.storiesCollection)
@@ -153,8 +195,9 @@ class StoriesDataSourceImpl implements StoriesDataSource {
           try {
             final ref = _storage.refFromURL(mediaUrl);
             await ref.delete();
+            print('✅ Media deleted from storage');
           } catch (e) {
-            print('Failed to delete media from storage: $e');
+            print('⚠️ Failed to delete media from storage: $e');
           }
         }
         
@@ -163,14 +206,17 @@ class StoriesDataSourceImpl implements StoriesDataSource {
             .collection(AppConstant.storiesCollection)
             .doc(storyId)
             .delete();
+        print('✅ Story deleted from Firestore');
       }
     } catch (e) {
+      print('❌ Failed to delete story: $e');
       throw Exception('Failed to delete story: $e');
     }
   }
 
   @override
   Stream<List<StoryModel>> getUserStories(String userId) {
+    print('📱 Loading stories for user: $userId');
     return _firestore
         .collection(AppConstant.storiesCollection)
         .where('userId', isEqualTo: userId)
@@ -179,10 +225,16 @@ class StoriesDataSourceImpl implements StoriesDataSource {
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      final stories = snapshot.docs
           .map((doc) => StoryModel.fromFirestore(doc))
           .where((story) => !story.isExpired)
           .toList();
+      
+      print('📱 Found ${stories.length} stories for user $userId');
+      return stories;
+    }).handleError((error) {
+      print('❌ Error in getUserStories: $error');
+      return <StoryModel>[];
     });
   }
 }

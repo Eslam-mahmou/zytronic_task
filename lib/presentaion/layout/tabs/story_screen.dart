@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:zytronic_task/core/utils/app_colors.dart';
+import 'package:zytronic_task/core/utils/constant_manager.dart';
 import 'package:zytronic_task/core/widget/custom_dialog.dart';
 import 'package:zytronic_task/di/injectable_initializer.dart';
 import 'package:zytronic_task/domain/entity/stories_entity.dart';
 import 'package:zytronic_task/presentaion/layout/manager/stoy_tab_cubit/story_tab_cubit.dart';
 import 'package:zytronic_task/presentaion/layout/manager/stoy_tab_cubit/story_tab_state.dart';
-import 'package:zytronic_task/presentaion/layout/tabs/widgets/add_story_widget.dart';
-import 'package:zytronic_task/presentaion/layout/tabs/widgets/story_item_widget.dart';
 import 'package:zytronic_task/presentaion/layout/tabs/widgets/story_viewer_screen.dart';
 
 class StoryScreen extends StatelessWidget {
@@ -48,6 +47,7 @@ class StoryScreen extends StatelessWidget {
               const SnackBar(
                 content: Text('Story uploaded successfully!'),
                 backgroundColor: AppColors.primaryColor,
+                duration: Duration(seconds: 2),
               ),
             );
           }
@@ -56,34 +56,14 @@ class StoryScreen extends StatelessWidget {
           return Scaffold(
             body: Column(
               children: [
-                // Header with Add Story
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Stories',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (state is StoryUploadLoading)
-                        Container(
-                          width: 20,
-                          height: 20,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primaryColor,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+                // My Status Section
+                _buildMyStatusSection(context, storyTabCubit, state),
                 
-                // Stories List
+                const Divider(height: 1),
+                
+                // Recent Updates
                 Expanded(
-                  child: _buildStoriesContent(context, state, storyTabCubit),
+                  child: _buildRecentUpdates(context, storyTabCubit, state),
                 ),
               ],
             ),
@@ -93,174 +73,385 @@ class StoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStoriesContent(
-    BuildContext context,
-    StoryTabState state,
-    StoryTabCubit cubit,
-  ) {
-    if (state is StoryTabLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primaryColor),
-      );
-    }
+  Widget _buildMyStatusSection(BuildContext context, StoryTabCubit cubit, StoryTabState state) {
+    // Check if current user has stories
+    final myStories = cubit.userStories
+        .where((userStory) => userStory.userId == AppConstant.userId)
+        .toList();
+    final hasMyStory = myStories.isNotEmpty;
 
-    if (state is StoriesLoaded) {
-      final userStories = cubit.userStories;
-      
-      if (userStories.isEmpty) {
-        return _buildEmptyState(cubit);
-      }
-
-      return SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Add Story Section
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          // Profile picture with add button
+          Stack(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey[300],
+                ),
+                child: const Icon(
+                  Icons.person,
+                  size: 30,
+                  color: Colors.grey,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: () => _showAddStoryOptions(context, cubit),
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primaryColor,
+                    ),
+                    child: const Icon(
+                      Icons.add,
+                      size: 15,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          
+          // Text content
+          Expanded(
+            child: GestureDetector(
+              onTap: hasMyStory 
+                  ? () => _openMyStories(context, myStories.first, cubit)
+                  : () => _showAddStoryOptions(context, cubit),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AddStoryWidget(cubit: cubit),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Add to story',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          'Share photos and videos that disappear after 24 hours',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
+                  Text(
+                    'My status',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    hasMyStory ? 'Tap to view your status' : 'Tap to add status update',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
                     ),
                   ),
                 ],
               ),
             ),
-            
-            const Divider(height: 32),
-            
-            // Recent Stories
-            if (userStories.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Recent stories',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+          ),
+          
+          // Camera button
+          GestureDetector(
+            onTap: () => _showAddStoryOptions(context, cubit),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              child: const Icon(
+                Icons.camera_alt,
+                color: AppColors.primaryColor,
+                size: 24,
               ),
-              const SizedBox(height: 16),
-              
-              // Stories Grid
-              Container(
-                height: 120,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  itemCount: userStories.length,
-                  itemBuilder: (context, index) {
-                    final userStory = userStories[index];
-                    return StoryItemWidget(
-                      userStory: userStory,
-                      onTap: () => _openStoryViewer(context, userStory, cubit),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    // Default empty or error state
-    return _buildEmptyState(cubit);
-  }
-
-  Widget _buildEmptyState(StoryTabCubit cubit) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 40),
-          
-          // Add Story Section
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                AddStoryWidget(cubit: cubit),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Add to story',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Share photos and videos that disappear after 24 hours',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ),
-          ),
-          
-          const SizedBox(height: 60),
-          
-          // Empty state illustration
-          Icon(
-            Icons.photo_library_outlined,
-            size: 80,
-            color: AppColors.primaryColor.withOpacity(0.3),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No stories yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start sharing your moments with stories!',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  void _openStoryViewer(
-    BuildContext context,
-    UserStoryEntity userStory,
-    StoryTabCubit cubit,
-  ) {
+  Widget _buildRecentUpdates(BuildContext context, StoryTabCubit cubit, StoryTabState state) {
+    if (state is StoryTabLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryColor),
+      );
+    }
+
+    final otherUserStories = cubit.userStories
+        .where((userStory) => userStory.userId != AppConstant.userId)
+        .toList();
+
+    if (otherUserStories.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.camera_alt_outlined,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No recent updates',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Stories from your contacts will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Recent updates',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: otherUserStories.length,
+            itemBuilder: (context, index) {
+              final userStory = otherUserStories[index];
+              return _buildStoryListItem(context, userStory, cubit);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoryListItem(BuildContext context, UserStoryEntity userStory, StoryTabCubit cubit) {
+    final latestStory = userStory.latestStory;
+    if (latestStory == null) return const SizedBox.shrink();
+
+    return ListTile(
+      leading: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: userStory.hasUnviewedStories 
+                ? AppColors.primaryColor 
+                : Colors.grey.withOpacity(0.3),
+            width: 2,
+          ),
+        ),
+        child: ClipOval(
+          child: Container(
+            color: AppColors.primaryColor.withOpacity(0.1),
+            child: Center(
+              child: Text(
+                userStory.userName.isNotEmpty 
+                    ? userStory.userName[0].toUpperCase() 
+                    : '?',
+                style: const TextStyle(
+                  color: AppColors.primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      title: Text(
+        userStory.userName,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        _formatTime(latestStory.createdAt),
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 13,
+        ),
+      ),
+      onTap: () => _openStoryViewer(context, userStory, cubit),
+    );
+  }
+
+  void _showAddStoryOptions(BuildContext context, StoryTabCubit cubit) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Add to your status',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 30),
+            
+            // Photo option
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+              title: const Text('Photo'),
+              subtitle: const Text('Share a photo from your gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(context, cubit);
+              },
+            ),
+            
+            // Video option
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.videocam,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+              title: const Text('Video'),
+              subtitle: const Text('Share a video from your gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickVideo(context, cubit);
+              },
+            ),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _pickImage(BuildContext context, StoryTabCubit cubit) {
+    final TextEditingController captionController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Photo Status'),
+        content: TextField(
+          controller: captionController,
+          decoration: const InputDecoration(
+            hintText: 'Add a caption (optional)...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              final caption = captionController.text.trim();
+              cubit.pickAndUploadImage(
+                caption: caption.isEmpty ? null : caption,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+            ),
+            child: const Text(
+              'Select Photo',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _pickVideo(BuildContext context, StoryTabCubit cubit) {
+    final TextEditingController captionController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Video Status'),
+        content: TextField(
+          controller: captionController,
+          decoration: const InputDecoration(
+            hintText: 'Add a caption (optional)...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              final caption = captionController.text.trim();
+              cubit.pickAndUploadVideo(
+                caption: caption.isEmpty ? null : caption,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+            ),
+            child: const Text(
+              'Select Video',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openMyStories(BuildContext context, UserStoryEntity userStory, StoryTabCubit cubit) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => StoryViewerScreen(
@@ -269,10 +460,41 @@ class StoryScreen extends StatelessWidget {
             cubit.markStoryAsViewed(storyId);
           },
           onComplete: () {
-            // Story viewing completed - could update UI or analytics
+            // Story viewing completed
           },
         ),
       ),
     );
+  }
+
+  void _openStoryViewer(BuildContext context, UserStoryEntity userStory, StoryTabCubit cubit) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => StoryViewerScreen(
+          stories: userStory.stories,
+          onStoryViewed: (storyId) {
+            cubit.markStoryAsViewed(storyId);
+          },
+          onComplete: () {
+            // Story viewing completed
+          },
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
   }
 }

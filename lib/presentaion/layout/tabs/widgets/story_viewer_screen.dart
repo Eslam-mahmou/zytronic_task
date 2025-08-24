@@ -33,6 +33,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   int _currentIndex = 0;
   Duration _storyDuration = const Duration(seconds: 5);
   bool _isPaused = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -44,7 +45,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       duration: _storyDuration,
     );
     
-    _loadStory(_currentIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadStory(_currentIndex);
+    });
   }
 
   @override
@@ -57,9 +60,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   }
 
   void _loadStory(int index) {
-    if (index >= widget.stories.length) return;
+    if (index >= widget.stories.length || index < 0) return;
 
     final story = widget.stories[index];
+    
+    setState(() {
+      _isLoading = true;
+      _isPaused = false;
+    });
     
     // Mark story as viewed
     widget.onStoryViewed?.call(story.id);
@@ -80,7 +88,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     
     _videoController!.initialize().then((_) {
       if (mounted) {
-        setState(() {});
+        setState(() {
+          _isLoading = false;
+        });
         _videoController!.play();
         
         // Set duration based on video length
@@ -90,18 +100,26 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       }
     }).catchError((error) {
       print('Error loading video: $error');
-      _nextStory();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _nextStory();
+      }
     });
   }
 
   void _loadImage() {
+    setState(() {
+      _isLoading = false;
+    });
     _storyDuration = const Duration(seconds: 5);
     _animationController.duration = _storyDuration;
     _startTimer();
   }
 
   void _startTimer() {
-    if (_isPaused) return;
+    if (_isPaused || !mounted) return;
     
     _animationController.forward().then((_) {
       if (mounted && !_isPaused) {
@@ -119,11 +137,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      _loadStory(_currentIndex);
     } else {
       // All stories completed
       widget.onComplete?.call();
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -136,24 +155,55 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      _loadStory(_currentIndex);
+    } else {
+      // Go back to the first story or exit
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
   void _pauseStory() {
-    _isPaused = true;
+    if (!mounted) return;
+    setState(() {
+      _isPaused = true;
+    });
     _animationController.stop();
     _videoController?.pause();
   }
 
   void _resumeStory() {
-    _isPaused = false;
-    _animationController.forward();
-    _videoController?.play();
+    if (!mounted) return;
+    setState(() {
+      _isPaused = false;
+    });
+    if (!_isLoading) {
+      _animationController.forward();
+      _videoController?.play();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.stories.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: const Center(
+          child: Text(
+            'No stories available',
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -163,10 +213,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
             PageView.builder(
               controller: _pageController,
               onPageChanged: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-                _loadStory(index);
+                if (mounted) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                  _loadStory(index);
+                }
               },
               itemCount: widget.stories.length,
               itemBuilder: (context, index) {
@@ -175,17 +227,25 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
               },
             ),
             
+            // Loading indicator
+            if (_isLoading)
+              const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primaryColor,
+                ),
+              ),
+            
             // Progress indicators
-            _buildProgressIndicators(),
+            if (!_isLoading) _buildProgressIndicators(),
             
             // Story header
-            _buildStoryHeader(),
+            if (!_isLoading) _buildStoryHeader(),
             
             // Touch areas for navigation
-            _buildTouchAreas(),
+            if (!_isLoading) _buildTouchAreas(),
             
             // Story caption
-            if (widget.stories[_currentIndex].caption != null)
+            if (!_isLoading && widget.stories[_currentIndex].caption != null)
               _buildCaption(),
           ],
         ),
@@ -210,8 +270,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   Widget _buildVideoPlayer() {
     if (_videoController == null || !_videoController!.value.isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primaryColor),
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryColor),
+        ),
       );
     }
 
@@ -228,13 +291,33 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         fit: BoxFit.contain,
-        placeholder: (context, url) => const Center(
-          child: CircularProgressIndicator(color: AppColors.primaryColor),
+        width: double.infinity,
+        height: double.infinity,
+        placeholder: (context, url) => Container(
+          color: Colors.black,
+          child: const Center(
+            child: CircularProgressIndicator(color: AppColors.primaryColor),
+          ),
         ),
-        errorWidget: (context, url, error) => const Icon(
-          Icons.error,
-          color: Colors.white,
-          size: 50,
+        errorWidget: (context, url, error) => Container(
+          color: Colors.black,
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error,
+                  color: Colors.white,
+                  size: 50,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Failed to load image',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -376,7 +459,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     final difference = now.difference(dateTime);
 
     if (difference.inMinutes < 1) {
-      return 'Now';
+      return 'now';
     } else if (difference.inHours < 1) {
       return '${difference.inMinutes}m ago';
     } else if (difference.inHours < 24) {
